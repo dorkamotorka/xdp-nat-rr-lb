@@ -23,12 +23,11 @@ struct endpoint {
   __u32 ip;
 };
 
-// Holds the next backend_idx to be used
 struct {
   __uint(type, BPF_MAP_TYPE_ARRAY);
   __uint(max_entries, 1);
   __type(key, __u32);
-  __type(value, __u32);
+  __type(value, __u32); // Holds the next backend_idx to be used
 } scheduler_state SEC(".maps");
 
 // Map of backends
@@ -248,12 +247,12 @@ int xdp_load_balancer(struct xdp_md *ctx) {
     struct endpoint *backend;
     __u32 *backend_idx = bpf_map_lookup_elem(&statetrack, &five_tuple);
     if (backend_idx) {
-      // Existing connection found in statetrack map - update state and proceed with the same backend.
+      // Existing connection found in statetrack map - proceed with the same backend.
       backend = bpf_map_lookup_elem(&backends, backend_idx);
       if (!backend)
         return XDP_ABORTED;
     } else {
-      // new connection - select backend with round-robin scheduling
+      // New connection - select backend with round-robin scheduling
       __u32 key = 0;
       __u32 zero = 0;
       __u32 *curr_idx = bpf_map_lookup_elem(&scheduler_state, &zero);
@@ -267,12 +266,14 @@ int xdp_load_balancer(struct xdp_md *ctx) {
         return XDP_ABORTED;
       }
 
-      __u32 next_idx = (key + 1) % NUM_BACKENDS;                        // Increment the index to point to the next backend
+      // Increment the count to point to the next backend and update the entry in scheduler_state map
+      // Perform modulo operation to get a number in the range of backend indexes
+      __u32 next_idx = (key + 1) % NUM_BACKENDS;
       if (bpf_map_update_elem(&scheduler_state, &zero, &next_idx, BPF_ANY) != 0) {
         return XDP_ABORTED;
-      } // Update index in scheduler_state map
+      }
       
-      // Store statetrack entry
+      // Update statetrack entry
       if (bpf_map_update_elem(&statetrack, &five_tuple, &key, BPF_ANY) != 0) {
         return XDP_ABORTED;
       }
