@@ -234,7 +234,7 @@ int xdp_load_balancer(struct xdp_md *ctx) {
   struct bpf_fib_lookup fib = {};
   struct endpoint *out = bpf_map_lookup_elem(&conntrack, &in);
   if (!out) {
-    bpf_printk("Packet from client..");
+    // bpf_printk("Packet from client..");
 
     // Check for an existing connection
     struct five_tuple_t five_tuple = {};
@@ -304,7 +304,7 @@ int xdp_load_balancer(struct xdp_md *ctx) {
     // Replace destination MAC with backends' MAC
     __builtin_memcpy(eth->h_dest, fib.dmac, ETH_ALEN);
   } else {
-    bpf_printk("Packet from backend..");
+    // bpf_printk("Packet from backend..");
 
     // Perform a FIB lookup - same as above
     int rc = fib_lookup_v4_full(ctx, &fib, ip->daddr, out->ip, bpf_ntohs(ip->tot_len));
@@ -334,7 +334,6 @@ int xdp_load_balancer(struct xdp_md *ctx) {
   // but instead is automatically recomputed by the NIC hardware when the packet
   // is transmitted.
   // Return XDP_TX to transmit the modified packet back to the network
-  bpf_printk("Redirecting packet to %pI4,", &ip->daddr);
   return XDP_TX;
 }
 
