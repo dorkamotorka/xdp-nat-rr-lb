@@ -265,6 +265,7 @@ int xdp_load_balancer(struct xdp_md *ctx) {
       if (!backend) {
         return XDP_ABORTED;
       }
+      bpf_printk("Selected backend index: %d with IP: %pI4", key, &backend->ip);
 
       // Increment the count to point to the next backend and update the entry in scheduler_state map
       // Perform modulo operation to get a number in the range of backend indexes
