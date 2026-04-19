@@ -253,28 +253,26 @@ int xdp_load_balancer(struct xdp_md *ctx) {
         return XDP_ABORTED;
     } else {
       // New connection - select backend with round-robin scheduling
-      __u32 key = 0;
       __u32 zero = 0;
       __u32 *curr_idx = bpf_map_lookup_elem(&scheduler_state, &zero);
       if (!curr_idx) {
         return XDP_ABORTED;
       }
-
-      key = *curr_idx;
+      __u32 key = *curr_idx;
       backend = bpf_map_lookup_elem(&backends, &key);
       if (!backend) {
         return XDP_ABORTED;
       }
       bpf_printk("Selected backend index: %d with IP: %pI4", key, &backend->ip);
 
-      // Increment the count to point to the next backend and update the entry in scheduler_state map
+      // Increment the ID/count to point to the next backend
       // Perform modulo operation to get a number in the range of backend indexes
       __u32 next_idx = (key + 1) % NUM_BACKENDS;
       if (bpf_map_update_elem(&scheduler_state, &zero, &next_idx, BPF_ANY) != 0) {
         return XDP_ABORTED;
       }
       
-      // Update statetrack entry
+      // Update statetrack entry to track this new connection and its associated backend for future packets of the same connection
       if (bpf_map_update_elem(&statetrack, &five_tuple, &key, BPF_ANY) != 0) {
         return XDP_ABORTED;
       }
